@@ -1,8 +1,3 @@
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 import javax.swing.JPanel;
@@ -36,109 +31,61 @@ public class Jugador {
     }
 
     public String getGrupos() {
-        boolean[] enFigura = new boolean[cartas.length];
-        List<String> mensajes = new ArrayList<>();
+        StringBuilder resultado = new StringBuilder();
 
-        mensajes.addAll(detectarSets(enFigura));
-
-        mensajes.addAll(detectarEscaleras(enFigura));
-
-        StringBuilder sb = new StringBuilder();
-        if (mensajes.isEmpty()) {
-            sb.append("No se encontraron figuras\n");
-        } else {
-            for (String m : mensajes) {
-                sb.append(m).append("\n");
-            }
-        }
-
-        sb.append("Puntaje restante: ").append(calcularPuntaje(enFigura));
-
-        return sb.toString();
-    }
-
-    public List<String> detectarSets(boolean[] enFigura) {
-        List<String> mensajes = new ArrayList<>();
-        if (cartas == null) {
-            return mensajes;
-        }
-
+        // Iniciar contadores por valor (A=0, 2=1, ..., 10=9, J=10, Q=11, K=12)
         int[] contadores = new int[13];
-        for (int i = 0; i < cartas.length; i++) {
-            int idx = cartas[i].getNombre().ordinal();
-            if (idx >= 0 && idx < 13) {
-                contadores[idx]++;
+        for (Carta carta : cartas) {
+            contadores[carta.getNombre().ordinal()]++;
+        }
+
+        // ¿Hay algún grupo (par, terna, cuarta)?
+        boolean hayGrupos = false;
+        for (int c : contadores) {
+            if (c >= 2) {
+                hayGrupos = true;
+                break;
             }
         }
 
-        for (int n = 0; n < 13; n++) {
-            if (contadores[n] >= 2) {
-                NombreCarta nombre = NombreCarta.values()[n];
-                String tipo;
-                if (contadores[n] == 2) {
-                    tipo = "Par";
-                } else if (contadores[n] == 3) {
-                    tipo = "Terna";
-                } else {
-                    tipo = "Cuarta";
+        int puntajeRestante = 0;
+
+        if (hayGrupos) {
+            resultado.append("Se encontraron los siguientes grupos:\n");
+            for (int p = 0; p < contadores.length; p++) {
+                int c = contadores[p];
+                if (c >= 2) {
+                    resultado.append(Grupo.values()[c])
+                            .append(" de ")
+                            .append(NombreCarta.values()[p])
+                            .append("\n");
+                } else if (c == 1) {
+                    // Carta suelta: sumar su valor según regla (A,J,Q,K = 10)
+                    puntajeRestante += valorCartaSueltaPorIndice(p);
                 }
-
-                mensajes.add(tipo + " de " + nombre);
-
-                int marcadas = 0;
-                for (int i = 0; i < cartas.length && marcadas < contadores[n]; i++) {
-                    if (cartas[i].getNombre().ordinal() == n) {
-                        enFigura[i] = true;
-                        marcadas++;
-                    }
+            }
+        } else {
+            resultado.append("No se encontraron figuras\n");
+            // Si no hay grupos, todas las cartas suman al puntaje
+            for (int p = 0; p < contadores.length; p++) {
+                int c = contadores[p];
+                if (c > 0) {
+                    puntajeRestante += valorCartaSueltaPorIndice(p) * c;
                 }
             }
         }
-        return mensajes;
+
+        resultado.append("Puntaje restante: ").append(puntajeRestante);
+        return resultado.toString();
     }
 
-    public List<String> detectarEscaleras(boolean[] enFigura) {
-        List<String> mensajes = new ArrayList<>();
-        if (cartas == null) {
-            return mensajes;
-        }
-
-        Map<Pinta, List<int[]>> porPinta = new HashMap<>();
-
-        for (int i = 0; i < cartas.length; i++) {
-            Pinta p = cartas[i].getPinta();
-            int valor = cartas[i].getNombre().ordinal();
-            porPinta.putIfAbsent(p, new ArrayList<>());
-            porPinta.get(p).add(new int[] { valor, i });
-        }
-
-        for (Pinta p : porPinta.keySet()) {
-            List<int[]> lista = porPinta.get(p);
-            lista.sort(Comparator.comparingInt(a -> a[0]));
-
-            int Iniciar = 0;
-            while (Iniciar < lista.size()) {
-                int cd = Iniciar;
-                while (cd + 1 < lista.size() && lista.get(cd + 1)[0] == lista.get(cd)[0] + 1) {
-                    cd++;
-                }
-
-                int len = cd - Iniciar + 1;
-                if (len >= 3) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Escalera de ").append(p).append(": ");
-                    for (int k = Iniciar; k <= cd; k++) {
-                        sb.append(NombreCarta.values()[lista.get(k)[0]]);
-                        if (k < cd)
-                            sb.append(", ");
-                        enFigura[lista.get(k)[1]] = true;
-                    }
-                    mensajes.add(sb.toString());
-                }
-                Iniciar = cd + 1;
-            }
-        }
-        return mensajes;
+    // 0: AS, 1..9: 2..10, 10: JACK, 11: QUEEN, 12: KING
+    private int valorCartaSueltaPorIndice(int idx) {
+        // AS (0) y figuras (J,Q,K -> 10,11,12) valen 10
+        if (idx == 0 || idx >= 10)
+            return 10;
+        // Números 2..10 valen su número
+        return idx + 1; // 1->2, 2->3, ..., 9->10
     }
 
     public int calcularPuntaje(boolean[] enFigura) {
