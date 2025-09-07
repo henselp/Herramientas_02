@@ -1,3 +1,4 @@
+
 import java.util.Random;
 
 import javax.swing.JPanel;
@@ -31,62 +32,92 @@ public class Jugador {
     }
 
     public String getGrupos() {
-        StringBuilder resultado = new StringBuilder();
+    StringBuilder resultado = new StringBuilder();
 
-        // Iniciar contadores por valor (A=0, 2=1, ..., 10=9, J=10, Q=11, K=12)
-        int[] contadores = new int[13];
+    
+    int[] contadores = new int[13]; 
+    for (Carta carta : cartas) {
+        contadores[carta.getNombre().ordinal()]++;
+    }
+
+    boolean hayGrupos = false;
+    int puntajeRestante = 0;
+
+    // tectectar ternas y cuartas 
+    for (int c : contadores) {
+        if (c >= 2) {
+            hayGrupos = true;
+            break;
+        }
+    }
+
+    if (hayGrupos) {
+        resultado.append("Se encontraron los siguientes grupos:\n");
+        for (int p = 0; p < contadores.length; p++) {
+            int c = contadores[p];
+            if (c == 2) {
+                resultado.append("Par de ").append(NombreCarta.values()[p]).append("\n");
+            } else if (c == 3) {
+                resultado.append("Terna de ").append(NombreCarta.values()[p]).append("\n");
+            } else if (c == 4) {
+                resultado.append("Cuarta de ").append(NombreCarta.values()[p]).append("\n");
+            } else if (c == 1) {
+                puntajeRestante += valorCartaSueltaPorIndice(p);
+            }
+        }
+    } else {
+        resultado.append("No se encontraron grupos\n");
+        for (int p = 0; p < contadores.length; p++) {
+            int c = contadores[p];
+            if (c > 0) {
+                puntajeRestante += valorCartaSueltaPorIndice(p) * c;
+            }
+        }
+    }
+
+    //dectetar escaleras de 3 o mas
+    for (Pinta pinta : Pinta.values()) {
+        boolean[] presentes = new boolean[13]; 
+
         for (Carta carta : cartas) {
-            contadores[carta.getNombre().ordinal()]++;
-        }
-
-        // ¿Hay algún grupo (par, terna, cuarta)?
-        boolean hayGrupos = false;
-        for (int c : contadores) {
-            if (c >= 2) {
-                hayGrupos = true;
-                break;
+            if (carta.getPinta() == pinta) {
+                presentes[carta.getNombre().ordinal()] = true;
             }
         }
 
-        int puntajeRestante = 0;
-
-        if (hayGrupos) {
-            resultado.append("Se encontraron los siguientes grupos:\n");
-            for (int p = 0; p < contadores.length; p++) {
-                int c = contadores[p];
-                if (c >= 2) {
-                    resultado.append(Grupo.values()[c])
-                            .append(" de ")
-                            .append(NombreCarta.values()[p])
-                            .append("\n");
-                } else if (c == 1) {
-                    // Carta suelta: sumar su valor según regla (A,J,Q,K = 10)
-                    puntajeRestante += valorCartaSueltaPorIndice(p);
+        // Buscar escalares
+        int i = 0;
+        while (i < 13) {
+            if (presentes[i]) {
+                int j = i;
+                while (j + 1 < 13 && presentes[j + 1]) {
+                    j++;
                 }
-            }
-        } else {
-            resultado.append("No se encontraron figuras\n");
-            // Si no hay grupos, todas las cartas suman al puntaje
-            for (int p = 0; p < contadores.length; p++) {
-                int c = contadores[p];
-                if (c > 0) {
-                    puntajeRestante += valorCartaSueltaPorIndice(p) * c;
+
+                int len = j - i + 1;
+                if (len >= 3) {
+                    resultado.append("Escalera de ").append(pinta).append(": ");
+                    for (int k = i; k <= j; k++) {
+                        resultado.append(NombreCarta.values()[k]);
+                        if (k < j) resultado.append(", ");
+                    }
+                    resultado.append("\n");
                 }
+                i = j + 1;
+            } else {
+                i++;
             }
         }
-
-        resultado.append("Puntaje restante: ").append(puntajeRestante);
-        return resultado.toString();
     }
 
-    // 0: AS, 1..9: 2..10, 10: JACK, 11: QUEEN, 12: KING
-    private int valorCartaSueltaPorIndice(int idx) {
-        // AS (0) y figuras (J,Q,K -> 10,11,12) valen 10
-        if (idx == 0 || idx >= 10)
-            return 10;
-        // Números 2..10 valen su número
-        return idx + 1; // 1->2, 2->3, ..., 9->10
-    }
+    resultado.append("Puntaje restante: ").append(puntajeRestante);
+
+    return resultado.toString();
+}
+private int valorCartaSueltaPorIndice(int idx) {
+    if (idx == 0 || idx >= 10) return 10; 
+    return idx + 1;
+}
 
     public int calcularPuntaje(boolean[] enFigura) {
         int suma = 0;
